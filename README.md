@@ -3,4 +3,4 @@ Some command line tools for max or windows, examples: file search、file text re
 
 ### how to install
 
-go get xxx
+go get github.com/cheneylew/go-tools/file
