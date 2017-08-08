@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
-	"github.com/cheneylew/go-tools/util"
+	"github.com/cheneylew/go-tools/filetool/run"
 )
 
 func main() {
-	fmt.Println("hello world2")
-	util.HTTPGet("http://www.baidu.com/")
+	run.Run()
 }
