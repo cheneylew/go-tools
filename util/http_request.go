@@ -1,7 +1,7 @@
 package util
 
 import (
-	"love-program.com/astaxie/beego/httplib"
+	"github.com/astaxie/beego/httplib"
 	"fmt"
 	"net/http"
 	"io/ioutil"

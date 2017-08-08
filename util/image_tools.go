@@ -3,7 +3,7 @@ package util
 import (
 	"os"
 	"image/jpeg"
-	"love-program.com/nfnt/resize"
+	"github.com/nfnt/resize"
 	"path"
 	"strings"
 	"image"
