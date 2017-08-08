@@ -13,6 +13,7 @@
     <SOURCES />
     <excluded>
       <root url="file://$PROJECT_DIR$/../../salviati/go-qt5/.git" />
+      <root url="file://$PROJECT_DIR$/../../fatih/color/.git" />
       <root url="file://$PROJECT_DIR$/../../../golang.org/x/crypto/.git" />
       <root url="file://$PROJECT_DIR$/../../anachronistic/apns/.git" />
       <root url="file://$PROJECT_DIR$/../../../gopkg.in/gcfg.v1/testdata" />

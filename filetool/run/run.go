@@ -4,65 +4,73 @@ import (
 	"github.com/cheneylew/go-tools/util"
 	"strings"
 	"os"
-	"github.com/cyfdecyf/bufio"
 	"io"
 	"path"
+	"bufio"
+	"github.com/fatih/color"
 	"fmt"
+	"flag"
+	"regexp"
 )
 
-func Run()  {
-	dirs := []string{}
-	for {
-		code := util.InputIntWithMessage("[0]go on;[1]input dir;number:")
-		flag := 0
-		switch code {
-		default:
-			flag = 1
-			break
-		case 1:
-			dir := util.InputStringWithMessage("target dir:")
-			if len(dir) > 0 {
-				dirs = append(dirs, util.Trim(dir))
-			}
+var ReplaceFound = false
+
+func Run() {
+	f := ""
+	fr := ""
+	r := ""
+	flag.StringVar(&f, "f", "", "word search")
+	flag.StringVar(&fr, "fr", "", `regexp search:cmd -fr '\d+'`)
+	flag.StringVar(&r, "r", "", `replace key work`)
+	flag.Parse()
+
+	if len(f) > 0 {
+		search([]string{util.ExeDir()}, f)
+	} else if len(fr) > 0 {
+		searchRegexp([]string{util.ExeDir()}, fr)
+	} else if len(r) > 0 {
+		dirs := []string{util.ExeDir()}
+		search(dirs, r)
+		if !ReplaceFound {
+			util.JJKPrintln("replace not found!")
+			return
 		}
-
-		if flag == 1 {
-			break
-		}
+		newStr := util.InputStringWithMessage("\nnew string:")
+		replace(dirs,r,newStr)
+	} else {
+		flag.Usage()
 	}
+}
 
-	if len(dirs) == 0 {
-		util.JJKPrintln("dir is empty! use current dir:",util.ExeDir())
-		dirs = append(dirs, util.ExeDir())
-	}
-
-
-	oldStr := ""
-	for {
-		old := util.InputStringWithMessage("old string:")
-		if len(old) > 0 {
-			break
-		}
-	}
-	//search(dirs,oldStr)
-
-	newStr := util.InputStringWithMessage("new string:")
-	code := util.InputIntWithMessage("[1]replace all;Enter Code:")
+func replace(dirtmp []string, old string, new string) {
+	dirs := dirtmp
+	oldStr := old
+	newStr := new
+	code := util.InputIntWithMessage("[1]confirm;\nEnter Code 1:")
 	if code != 1 {
 		util.JJKPrintln("\nexit!")
 		return
 	}
-	util.JJKPrintln("start replace!")
 
-	for _, mydir := range dirs {
-		files := util.FilesAtDir(mydir)
+	for _, dir := range dirs {
+		files := util.FilesAtDir(dir)
 		for _, file := range files {
-			ext := path.Ext(file.Path)
-			if !strings.Contains(ext,".") {
+			//隐藏目录忽略
+			pathPart := strings.Split(file.Dir,"/")
+			last := ""
+			for _, value := range pathPart {
+				if len(value) > 0 {
+					last = value
+				}
+			}
+			if strings.HasPrefix(last,".") {
 				continue;
 			}
 
-			util.JJKPrintln(fmt.Sprintf("%v %v",oldStr, newStr))
+			ext := path.Ext(file.Path)
+			if !strings.Contains(ext, ".") {
+				continue;
+			}
 
 			text := util.FileReadAllString(file.Path)
 			newText := strings.Replace(text, oldStr, newStr, -1)
@@ -71,12 +79,26 @@ func Run()  {
 	}
 }
 
-func search(dirs []string, word string)  {
+func search(dirs []string, word string) {
+	util.JJKPrintln("\n=========================== search ===========================")
 	for _, dir := range dirs {
 		files := util.FilesAtDir(dir)
 		for _, file := range files {
+			//隐藏目录忽略
+			pathPart := strings.Split(file.Dir,"/")
+			last := ""
+			for _, value := range pathPart {
+				if len(value) > 0 {
+					last = value
+				}
+			}
+			if strings.HasPrefix(last,".") {
+				continue;
+			}
+
+			//后缀
 			ext := path.Ext(file.Path)
-			if !strings.Contains(ext,".") {
+			if !strings.Contains(ext, ".") {
 				continue;
 			}
 			fi, err := os.Open(file.Path)
@@ -85,18 +107,149 @@ func search(dirs []string, word string)  {
 			}
 			defer fi.Close()
 			reader := bufio.NewReader(fi)
+
+			lineNum := 0
+			flag := 0
 			for {
-				line,_,err1 := reader.ReadLine()
+				lineNum += 1
+				line, _, err1 := reader.ReadLine()
 				if err1 == io.EOF {
 					break
 				} else if err1 != nil {
+					util.JJKPrintln(err1)
 					break
 				}
 				if len(line) > 0 {
 					lineStr := string(line)
 					iscontain := strings.Contains(lineStr, word)
 					if iscontain {
-						util.JJKPrintln(lineStr)
+						ReplaceFound = true
+
+						if flag == 0 {
+							fmt.Printf("\nfile: %v\n", file.Path)
+						}
+						flag = 1;
+
+						charCount := 20
+						arr := make([]string, 0)
+						strs := strings.Split(lineStr, word)
+						for _, str := range strs {
+							str = util.Trim(str)
+							strLength := len(str)
+							if strLength < charCount {
+								arr = append(arr, str)
+							} else {
+								chars := []byte(str)
+								arr = append(arr, string(chars[(strLength - charCount):]))
+							}
+						}
+
+						//高亮关键字
+						yellow := color.New(color.FgYellow).SprintFunc()
+						red := color.New(color.FgRed).SprintFunc()
+						fmt.Printf("line:%v:", red(lineNum))
+						for key, str := range arr {
+							if key == len(arr) - 1 {
+								fmt.Printf("%s", str)
+							} else {
+								fmt.Printf("%s%s", str, yellow(word))
+							}
+						}
+						fmt.Println("")
+					}
+				}
+
+			}
+		}
+	}
+}
+
+func searchRegexp(dirs []string, regStr string) {
+	util.JJKPrintln("\n=========================== search regexp ===========================")
+	for _, dir := range dirs {
+		files := util.FilesAtDir(dir)
+		for _, file := range files {
+			//隐藏目录忽略
+			pathPart := strings.Split(file.Dir,"/")
+			last := ""
+			for _, value := range pathPart {
+				if len(value) > 0 {
+					last = value
+				}
+			}
+			if strings.HasPrefix(last,".") {
+				continue;
+			}
+
+			ext := path.Ext(file.Path)
+			if !strings.Contains(ext, ".") {
+				continue;
+			}
+			if strings.Contains(ext, "DS_Store") {
+				continue;
+			}
+
+			fi, err := os.Open(file.Path)
+			if err != nil {
+				util.JJKPrintln(err)
+			}
+			defer fi.Close()
+			reader := bufio.NewReader(fi)
+
+			lineNum := 0
+			flag := 0
+			for {
+				lineNum += 1
+				line, _, err1 := reader.ReadLine()
+				if err1 == io.EOF {
+					break
+				} else if err1 != nil {
+					util.JJKPrintln(err1)
+					break
+				}
+				if len(line) > 0 {
+					lineStr := string(line)
+					result := util.JKRegFindAll(lineStr, regStr)
+					iscontain := len(result) > 0
+					if iscontain {
+						if flag == 0 {
+							fmt.Printf("\nfile: %v\n", file.Path)
+						}
+						flag = 1;
+
+						//劈开一行
+						matchStr := strings.Join(result, "|")
+						util.JJKPrintln(matchStr)
+						re := regexp.MustCompile(matchStr)
+						result := re.Split(lineStr, -1)
+
+						//关键字前后的文字
+						charCount := 20
+						arr := make([]string, 0)
+						strs := result
+						for _, str := range strs {
+							str = util.Trim(str)
+							strLength := len(str)
+							if strLength < charCount {
+								arr = append(arr, str)
+							} else {
+								chars := []byte(str)
+								arr = append(arr, string(chars[(strLength - charCount):]))
+							}
+						}
+
+						//高亮关键字
+						yellow := color.New(color.FgYellow).SprintFunc()
+						red := color.New(color.FgRed).SprintFunc()
+						fmt.Printf("line:%v:", red(lineNum))
+						for key, str := range arr {
+							if key == len(arr) - 1 {
+								fmt.Printf("%s", str)
+							} else {
+								fmt.Printf("%s%s", str, yellow(matchStr))
+							}
+						}
+						fmt.Println("")
 					}
 				}
 
