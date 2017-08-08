@@ -14,15 +14,22 @@ import (
 )
 
 var ReplaceFound = false
+var Exts []string = []string{}
 
 func Run() {
 	f := ""
 	fr := ""
 	r := ""
+	ext := ""
 	flag.StringVar(&f, "f", "", "word search")
 	flag.StringVar(&fr, "fr", "", `regexp search:cmd -fr '\d+'`)
 	flag.StringVar(&r, "r", "", `replace key work`)
+	flag.StringVar(&ext, "ext", "", `file extension:'.go|.h|.m'`)
 	flag.Parse()
+
+	if len(ext) > 0 {
+		Exts = strings.Split(ext,"|")
+	}
 
 	if len(f) > 0 {
 		search([]string{util.ExeDir()}, f)
@@ -55,6 +62,19 @@ func replace(dirtmp []string, old string, new string) {
 	for _, dir := range dirs {
 		files := util.FilesAtDir(dir)
 		for _, file := range files {
+			//指定后缀文件
+			if len(Exts) != 0 {
+				okType := false
+				for _, value := range Exts {
+					if file.Ext == value {
+						okType = true
+					}
+				}
+				if !okType {
+					continue
+				}
+			}
+
 			//隐藏目录忽略
 			pathPart := strings.Split(file.Dir,"/")
 			last := ""
@@ -73,8 +93,11 @@ func replace(dirtmp []string, old string, new string) {
 			}
 
 			text := util.FileReadAllString(file.Path)
-			newText := strings.Replace(text, oldStr, newStr, -1)
-			util.FileWriteString(file.Path, newText)
+			if strings.Contains(text, oldStr) {
+				util.JJKPrintln("write file",file.Path)
+				newText := strings.Replace(text, oldStr, newStr, -1)
+				util.FileWriteString(file.Path, newText)
+			}
 		}
 	}
 }
@@ -84,6 +107,19 @@ func search(dirs []string, word string) {
 	for _, dir := range dirs {
 		files := util.FilesAtDir(dir)
 		for _, file := range files {
+			//指定后缀文件
+			if len(Exts) != 0 {
+				okType := false
+				for _, value := range Exts {
+					if file.Ext == value {
+						okType = true
+					}
+				}
+				if !okType {
+					continue
+				}
+			}
+
 			//隐藏目录忽略
 			pathPart := strings.Split(file.Dir,"/")
 			last := ""
@@ -169,6 +205,19 @@ func searchRegexp(dirs []string, regStr string) {
 	for _, dir := range dirs {
 		files := util.FilesAtDir(dir)
 		for _, file := range files {
+			//指定后缀文件
+			if len(Exts) != 0 {
+				okType := false
+				for _, value := range Exts {
+					if file.Ext == value {
+						okType = true
+					}
+				}
+				if !okType {
+					continue
+				}
+			}
+
 			//隐藏目录忽略
 			pathPart := strings.Split(file.Dir,"/")
 			last := ""
